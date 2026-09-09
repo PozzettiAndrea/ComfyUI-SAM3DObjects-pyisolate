@@ -14,6 +14,7 @@ from datetime import datetime
 import random
 import comfy.model_management
 from plyfile import PlyData, PlyElement
+from scipy.spatial.transform import Rotation
 from easydict import EasyDict as edict
 from .sparse import SparseTensor
 
@@ -426,6 +427,12 @@ class Gaussian:
 
         scale = torch.log(self.get_scaling).detach().cpu().numpy()
         rotation = (self._rotation + self.rots_bias[None, :]).detach().cpu().numpy()
+        if transform is not None:
+            # xyz uses row vectors; Gaussian rotations use column vectors.
+            rotation = (
+                Rotation.from_matrix(transform.T)
+                * Rotation.from_quat(rotation[:, [1, 2, 3, 0]])
+            ).as_quat()[:, [3, 0, 1, 2]]
 
         # Standard Gaussian Splatting PLY format (float-only for gsplat.js compat)
         dtype_full = [("x", "f4"), ("y", "f4"), ("z", "f4"),
